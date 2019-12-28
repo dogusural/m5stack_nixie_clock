@@ -55,11 +55,11 @@ void setup()
   M5.begin(true, false, true);
   WiFi.begin(ssid, password);
   Serial.begin(115200);
-  M5.Lcd.setTextDatum(MC_DATUM);
+  //M5.Lcd.setTextDatum(MC_DATUM);
   M5.Lcd.fillScreen(TFT_BLACK);
   M5.Lcd.setBrightness(128);
   M5.Lcd.setTextColor(ORANGE);
-  M5.Lcd.setFreeFont(CF_Y32); 
+  M5.Lcd.setFreeFont(CF_OL24); 
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
@@ -78,15 +78,23 @@ void setup()
 void loop() 
 {
   M5.update();
- if(M5.BtnA.wasPressed()) { 
-    Serial.println("Button Pressed");
-     makehttpRequest();
+ if(M5.BtnA.wasPressed()) 
+  { 
+    String Temprature,Weather; 
+    getWeather(Temprature,Weather);
+    M5.Lcd.fillScreen(TFT_BLACK);
+    M5.Lcd.drawString(Temprature + " Degrees",55,175,GFXFF);
+    M5.Lcd.drawString(Weather,55,205,GFXFF);
+  }
 
+  if(M5.BtnB.wasPressed()) 
+  { 
+    M5.Lcd.fillScreen(TFT_BLACK);
+    M5.Lcd.drawString("I LOVE SERPIL",50,190,GFXFF);
   }
 
  
    display_date();
-   M5.Lcd.drawString("Dogus Ural",150,200,GFXFF);
    delay(500);
 }
 
@@ -341,7 +349,7 @@ void showDigit(byte digit, uint16_t xpos, uint16_t ypos)
 }
 
 
-void makehttpRequest() {
+void getWeather(String &tmp, String &wet_desc) {
   // close any connection before send a new request to allow client make connection to server
   client.stop();
 
@@ -384,25 +392,22 @@ void makehttpRequest() {
   
     // Parse JSON object
     DeserializationError error = deserializeJson(doc, client);
-    
-    serializeJson(doc, Serial);
-    JsonObject list_1 = doc["list"][0];
-    
-    JsonObject list_1_main = list_1["main"];
-    JsonObject list_1_weather = list_1["weather"][0];
-    
-    float temp = list_1_main["temp"]; // 
-    String weather = list_1_weather["description"];
-    Serial.println("\n");
-    Serial.println(temp);
-    Serial.println("\n");
-    Serial.println(weather);
+  
 
     if (error) {
       Serial.print(F("deserializeJson() failed: "));
       Serial.println(error.c_str());
       return;
     }
+
+    JsonObject list_1 = doc["list"][0];
+    JsonObject list_1_main = list_1["main"];
+    JsonObject list_1_weather = list_1["weather"][0];
+    
+    float temp = list_1_main["temp"]; // 
+    tmp = String(temp);
+    String weather = list_1_weather["description"];
+    wet_desc = weather;
 
   }
 }
