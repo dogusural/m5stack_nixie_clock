@@ -2,18 +2,28 @@
 #include <M5Stack.h>
 #include "18x34.c"
 #include "35x67.c"
+#include "Free_Fonts.h"
 #include <WiFi.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 #include <ArduinoJson.h>
 
+#define GFXFF 1
+#define CF_OL24 &Orbitron_Light_24
+#define CF_OL32 &Orbitron_Light_32
+#define CF_RT24 &Roboto_Thin_24
+#define CF_S24  &Satisfy_24
+#define CF_Y32  &Yellowtail_32
 const char server[] = "api.openweathermap.org";
 String nameOfCity = "Vienna,AT";
 // How your nameOfCity variable would look like for Lagos on Nigeria
 //String nameOfCity = "Lagos,NG";
 
-// Replace the next line with your API Key
 String apiKey = "a2307508f02b69dc81ce3a0d4bfafd6f";
+
+const size_t capacity = 2048;
+DynamicJsonDocument doc(capacity);
+
 WiFiClient client;
 String text;
 int jsonend = 0;
@@ -45,10 +55,11 @@ void setup()
   M5.begin(true, false, true);
   WiFi.begin(ssid, password);
   Serial.begin(115200);
+  M5.Lcd.setTextDatum(MC_DATUM);
   M5.Lcd.fillScreen(TFT_BLACK);
   M5.Lcd.setBrightness(128);
-  M5.Lcd.setTextSize(3);
-  M5.Lcd.setTextColor(ORANGE); 
+  M5.Lcd.setTextColor(ORANGE);
+  M5.Lcd.setFreeFont(CF_Y32); 
   while (WiFi.status() != WL_CONNECTED) {
       delay(500);
       Serial.print(".");
@@ -74,10 +85,9 @@ void loop()
   }
 
  
-  display_date();
-  M5.Lcd.setCursor(0, 180);
-  M5.Lcd.print("Dogus Ural");
-  delay(500);
+   display_date();
+   M5.Lcd.drawString("Dogus Ural",150,200,GFXFF);
+   delay(500);
 }
 
 
@@ -354,32 +364,45 @@ void makehttpRequest() {
       }
     }
 
-    char c = 0;
-    while (client.available()) {
-      c = client.read();
-      // since json contains equal number of open and close curly brackets, this means we can determine when a json is completely received  by counting
-      // the open and close occurences,
-      Serial.print(c);
-      if (c == '{') {
-        startJson = true;         // set startJson true to indicate json message has started
-        jsonend++;
-      }
-      if (c == '}') {
-        jsonend--;
-      }
-      if (startJson == true) {
-        text += c;
-      }
-      // if jsonend = 0 then we have have received equal number of curly braces 
-      if (jsonend == 0 && startJson == true) {
-        text = "";                // clear text string for the next time
-        startJson = false;        // set startJson to false to indicate that a new message has not yet started
-      }
+    char status[32] = {0};
+    client.readBytesUntil('\r', status, sizeof(status));
+    if (strcmp(status, "HTTP/1.1 200 OK") != 0) {
+      Serial.print(F("Unexpected response: "));
+      Serial.println(status);
+      return;
     }
-  }
-  else {
-    // if no connction was made:
-    Serial.println("connection failed");
-    return;
+  
+    // Skip HTTP headers
+    char endOfHeaders[] = "\r\n\r\n";
+    if (!client.find(endOfHeaders)) {
+      Serial.println(F("Invalid response"));
+      return;
+    }
+  
+    
+   
+  
+    // Parse JSON object
+    DeserializationError error = deserializeJson(doc, client);
+    
+    serializeJson(doc, Serial);
+    JsonObject list_1 = doc["list"][0];
+    
+    JsonObject list_1_main = list_1["main"];
+    JsonObject list_1_weather = list_1["weather"][0];
+    
+    float temp = list_1_main["temp"]; // 
+    String weather = list_1_weather["description"];
+    Serial.println("\n");
+    Serial.println(temp);
+    Serial.println("\n");
+    Serial.println(weather);
+
+    if (error) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(error.c_str());
+      return;
+    }
+
   }
 }
